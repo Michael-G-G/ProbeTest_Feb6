@@ -71,9 +71,15 @@ def process_data(filename) -> list:
             forceVal[forceSamples] = (float(data[row][1]))
             forceSamples += 1
 
+
+    # accelVal = threshold_value(data=accelVal, threshold=0.00)
+
     # Integrate twice over acceleration data to get position
-    velocity = cumulative_trapezoid(accelVal, accelTime)
-    position = cumulative_trapezoid(velocity, accelTime)
+    velocity = cumulative_trapezoid(x=accelTime, y=accelVal, reset_value=50)
+
+
+    # velocity = zero_velocity(acceleration_data=accelVal, velocity_data=velocity, threshold=30)
+    position = cumulative_trapezoid(x=accelTime, y=velocity)
 
     # Create time vs position lookup table
     timePositionLookup = np.hstack((accelTime, position))
@@ -89,16 +95,31 @@ def process_data(filename) -> list:
     return output_accel_data, output_force_data
 
 
+def threshold_value(data, threshold):
+    for i in range(len(data)):
+        if abs(data[i][0]) < threshold:
+            data[i][0] = 0
+    return data
 
-def cumulative_trapezoid(y, x) -> np.array:
+
+def cumulative_trapezoid(x,y, reset_value=None) -> np.array:
     """
         Returns the trapezoidal numerical integral values for each point in x
     """
     integral = np.zeros(shape=(len(x),1))
     for i in range(1, len(x)):
-        integral[i] = integral[i-1] + (x[i-1] - x[i]) * (y[i-1] + y[i]) / 2
-
+        if reset_value != None and y[i][0] > reset_value:
+            integral[i] = 0
+        else:
+            integral[i] = integral[i-1] + (x[i-1] - x[i]) * (y[i-1] + y[i]) / 2
+        # integral[i] = integral[i-1] + (x[i-1] - x[i]) * (y[i-1] + y[i]) / 2
     return integral
+
+def get_file(file_path):
+    if os.path.exits(file_path):
+        return np.loadtxt(file_path, delimiter=",", dtype=str)
+    print("Error, no file ", file_path, " found")
+    return 
 
 
 def position_lookup(timeVal, timePosLookup):
@@ -121,5 +142,9 @@ def position_lookup(timeVal, timePosLookup):
     return position
 
 
-process_data_wrapper("raw_test_data", "processed_test_data")
+# process_data_wrapper(input_folder="raw_test_data", output_folder="processed_test_data")
 
+
+output_accel_data, output_force_data = process_data("raw_test_data/HalfProbe2-1.txt")
+
+print(output_accel_data)
